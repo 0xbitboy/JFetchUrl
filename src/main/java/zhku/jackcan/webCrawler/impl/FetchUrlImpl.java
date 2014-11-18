@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -58,11 +57,10 @@ public class FetchUrlImpl implements FetchUrl {
 	private String method = "GET";
 	private String decodeCharset = null;
 	private HttpClient httpclient = null;
-	private Map<String, String> headers = new HashMap();
+	private Map<String, String> headers = new HashMap<String,String>();
 	private HttpRequestBase http;
-	private Set<String> forbidHead = new HashSet();
-	private Map<String, String> addHttpHeaders = new HashMap();
-	private List<NameValuePair> postDataList = new ArrayList();
+	private Map<String, String> addHttpHeaders = new HashMap<String,String>();
+	private List<NameValuePair> postDataList = new ArrayList<NameValuePair>();
 	private boolean isPost = false;
 	private int httpStatusCode = 200;
 	private String statusMsg = "";
@@ -70,6 +68,7 @@ public class FetchUrlImpl implements FetchUrl {
 	private String characterEncode = "UTF-8";
 	private String header_str = "";
 	private String scheme = "http";
+	private BinaryData responseBinaryData=null;
 	public FetchUrlImpl() {
 		 //多线程支持
 		 ClientConnectionManager conMgr =new ThreadSafeClientConnManager();
@@ -78,20 +77,18 @@ public class FetchUrlImpl implements FetchUrl {
 	}
 
 	@Override
-	public String get(String url) {
+	public String get(String url) throws FetchTimeoutException {
 		this.method = "GET";
-		return fetch(url, "GET");
+		return fetch(url, "GET",false,1);
 	}
 
 	@Override
-	public String post(String url) {
+	public String post(String url) throws FetchTimeoutException {
 		this.method = "POST";
-		return fetch(url, "POST");
+		return fetch(url, "POST",false,1);
 	}
-	@Override
-	public String fetch(String url, String method) {
+	private String fetch(String url, String method,boolean isResource ,int redoTimes) throws FetchTimeoutException {
 		HttpEntity entity = null;
-		
 		try {
 			if (null == method)
 				this.method = "GET";
@@ -135,8 +132,27 @@ public class FetchUrlImpl implements FetchUrl {
 				}
 
 			}
-
-			HttpResponse response = this.httpclient.execute(this.http);
+			/***重试N次***/
+			HttpResponse response =null;
+			if(redoTimes<0) redoTimes =1;
+			int times =1;
+			while(response==null||response.getStatusLine().getStatusCode()>=500){
+				if(times>redoTimes){
+					break;
+				}
+				//释放之前的链接请求
+				if(this.http!=null){
+					this.http.releaseConnection();
+				}
+				try{
+					response= this.httpclient.execute(this.http);
+				}catch(Exception e){
+					if(times>redoTimes){
+						throw new FetchTimeoutException();
+					}
+				}
+				times++;
+			}
 			parseResponseStatus(response);
 			Header[] responseHeaders = response.getAllHeaders();
 			Header[] arr = responseHeaders;
@@ -152,18 +168,29 @@ public class FetchUrlImpl implements FetchUrl {
 				}
 			}
 			entity = response.getEntity();
-			String contentType= headers.get("Content-Type");
-			if(contentType!=null){
-				suffix = contentType.split("/")[1];
-			}
-			if (contentType!=null&&contentType.indexOf("text") < 0) {
-				this.responseBytes = EntityUtils.toByteArray(entity);
-			} else if (decodeCharset == null) {
+			if(isResource){
+				String contentType= headers.get("Content-Type");
+				String suffix=null;
+				if(contentType!=null){
+					contentType=contentType.split(";")[0];
+					suffix = contentType.split("/")[1];
+				}
+				if (contentType!=null) {
+					String tempName = url.substring(url.lastIndexOf('/')+1, url.length());
+					if(!tempName.endsWith(suffix)){
+						tempName =new StringBuffer().append(tempName.replaceAll("\\.[\\s\\S]+", "")).append(".").append(suffix).toString();
+					}
+					this.responseBinaryData = new BinaryData(tempName,  EntityUtils.toByteArray(entity));
+					return tempName;
+				} 
+			}else if (decodeCharset == null) {
 				this.body = EntityUtils.toString(entity, this.characterEncode);
 			} else {
 				this.body = new String(EntityUtils.toByteArray(entity), decodeCharset);
 			}
 			return this.body;
+		}catch(FetchTimeoutException fetche){
+			throw fetche;
 		} catch (Exception e) {
 			StackTraceElement[] ste = e.getStackTrace();
 			String ex_str = new StringBuilder().append("").append(e).append("\n").toString();
@@ -292,47 +319,53 @@ public class FetchUrlImpl implements FetchUrl {
 	}
 
 	@Override
-	public void setReadTimeout(int timeout) {
+	public FetchUrl setReadTimeout(int timeout) {
 		if ((timeout > 20000) || (timeout < 1))
 			timeout = 20000;
 		this.httpclient.getParams().setParameter("http.socket.timeout", Integer.valueOf(timeout));
+		return this;
 	}
 
 	@Override
-	public void setSendTimeout(int timeout) {
+	public FetchUrl setSendTimeout(int timeout) {
 		if ((timeout > 20000) || (timeout < 1))
 			timeout = 20000;
 		this.httpclient.getParams().setParameter("http.socket.timeout", Integer.valueOf(timeout));
+		return this;
 	}
 
 	@Override
-	public void setConnectTimeout(int timeout) {
+	public FetchUrl setConnectTimeout(int timeout) {
 		if ((timeout > 5000) || (timeout < 1))
 			timeout = 5000;
 		this.httpclient.getParams().setParameter("http.connection.timeout", Integer.valueOf(timeout));
+		return this;
 	}
 
 	@Override
-	public void setAllowRedirect(boolean allow) {
+	public FetchUrl setAllowRedirect(boolean allow) {
 		this.httpclient.getParams().setParameter("http.protocol.handle-redirects", Boolean.valueOf(allow));
+		return this;
 
 	}
 
 	@Override
-	public void setRedirectNum(int num) {
+	public FetchUrl setRedirectNum(int num) {
 		if ((num < 0) || (num > 5)) {
 			num = 5;
 		}
 		this.httpclient.getParams().setParameter("http.protocol.max-redirects", Integer.valueOf(num));
+		return this;
 	}
 
 	@Override
-	public void setCookie(String name, String value) {
+	public FetchUrl setCookie(String name, String value) {
 		this.addHttpHeaders.put("Cookie", new StringBuilder().append(name).append("=").append(value).append(";").toString());
+		return this;
 	}
 
 	@Override
-	public void setCookies(Map<String, String> maps) {
+	public FetchUrl setCookies(Map<String, String> maps) {
 		Iterator iter = maps.keySet().iterator();
 		StringBuilder cookieResult = new StringBuilder();
 		while (iter.hasNext()) {
@@ -345,41 +378,39 @@ public class FetchUrlImpl implements FetchUrl {
 			cookieResult.deleteCharAt(cookieResult.length() - 1);
 		}
 		this.addHttpHeaders.put("Cookie", cookieResult.toString());
+		return this;
 	}
 
 	@Override
-	public void setHeader(String name, String value) {
+	public FetchUrl setHeader(String name, String value) {
 		String trimName = name.trim();
-		if (!checkIsForbid(trimName))
-			this.addHttpHeaders.put(name, value);
+		this.addHttpHeaders.put(trimName, value);
+		return this;
 	}
 
 	@Override
-	public void setHttpAuth(String username, String password) {
+	public FetchUrl setHttpAuth(String username, String password) {
 		String content = new StringBuilder().append(username).append(":").append(password).toString();
 		String encodeContent = new BASE64Encoder().encode(content.getBytes());
 		this.addHttpHeaders.put("Authorization", new StringBuilder().append("Basic ").append(encodeContent).toString());
-	}
-
-	private boolean checkIsForbid(String header) {
-		String lowerCase = header.toLowerCase();
-		boolean isForbid = this.forbidHead.contains(lowerCase);
-		return isForbid;
+		return this;
 	}
 
 	@Override
-	public void setPostData(List<NameValuePair> postDataList) {
+	public FetchUrl setPostData(List<NameValuePair> postDataList) {
 		setPostData(postDataList, this.characterEncode);
+		return this;
 	}
 
 	@Override
-	public void setPostData(List<NameValuePair> postDataList, String characterEncode) {
+	public FetchUrl setPostData(List<NameValuePair> postDataList, String characterEncode) {
 		this.method = "POST";
 		this.postDataList = postDataList;
 		this.isPost = true;
 		this.characterEncode = characterEncode;
 		if (logger.isLoggable(Level.FINE))
 			logger.fine(new StringBuilder().append("post data:").append(postDataList).toString());
+		return this;
 	}
 
 	@Override
@@ -402,7 +433,7 @@ public class FetchUrlImpl implements FetchUrl {
 
 	@Override
 	public Map<String, String> getResponseHeader() {
-		return new HashMap(this.headers);
+		return new HashMap<String, String>(this.headers);
 	}
 
 	@Override
@@ -428,17 +459,17 @@ public class FetchUrlImpl implements FetchUrl {
 	}
 
 	@Override
-	public void reset() {
+	public FetchUrl reset() {
 		this.httpclient = new DefaultHttpClient();
 		init();
 		this.http = null;
 		if (this.headers != null)
-			this.headers = new HashMap();
+			this.headers = new HashMap<String,String>();
 		if (this.addHttpHeaders != null)
-			this.addHttpHeaders = new HashMap();
+			this.addHttpHeaders =new HashMap<String,String>();
 		this.isPost = false;
 		if (this.postDataList != null) {
-			this.postDataList = new ArrayList();
+			this.postDataList = new ArrayList<NameValuePair>();
 		}
 		this.method = "GET";
 		this.httpStatusCode = 200;
@@ -447,107 +478,77 @@ public class FetchUrlImpl implements FetchUrl {
 		this.statusMsg = "";
 		this.body = "";
 		this.header_str = "";
+		return this;
 	}
-
 	@Override
 	public BinaryData getResponseBinaryData() {
-		return null;
+		return this.responseBinaryData;
 	}
 
 	@Override
-	public void setCookies(String cookieString) {
+	public FetchUrl setCookies(String cookieString) {
 		this.addHttpHeaders.put("Cookie", cookieString);
+		return this;
 	}
-
 	@Override
-	public void setDecodeCharset(String charset) {
-		// TODO Auto-generated method stub
+	public FetchUrl setDecodeCharset(String charset) {
 		this.decodeCharset = charset;
+		return this;
 	}
 
 	@Override
-	public void setPostData(Map<String, String> paramMap) {
+	public FetchUrl setPostData(Map<String, String> paramMap) {
 		this.postDataList.clear();
 		Set<String> keys=paramMap.keySet();
 		for(String key:keys){
 			this.postDataList.add(new BasicNameValuePair(key, paramMap.get(key)));
 		}
 		setPostData(postDataList, this.characterEncode);
+		return this;
 	}
 
 	@Override
 	public String get(String url, int redoTimes) throws FetchTimeoutException {
 		this.method = "GET";
-		String html=null;
-		byte[] img = null;
-		int httpCode=0;
-		int count=1;
-		Exception laste = null;
-		while((html==null&&img==null)||httpCode>=400){
-			if(count>redoTimes){
-				throw new FetchTimeoutException(laste!=null?laste.getMessage():"请求失败，不是程序问题");
-			}else if(count>1){
-				logger.warning("请求失败,最多重试"+redoTimes+"次,现在是第"+count+"次请求");
-			}
-			try{
-				html=fetch(url, "GET");
-				img=getResponseBinaryData();
-				httpCode=getHttpCode();
-			}catch (Exception e) {
-				laste=e;
-				logger.info(e.getMessage());
-			}
-			count++;
-		}
-		return html;
+		return fetch(url, method, false,redoTimes);
 	}
 
 	@Override
 	public String post(String url, int redoTimes) throws FetchTimeoutException {
 		this.method = "POST";
-		String html=null;
-		byte[] img = null;
-		int httpCode=0;
-		int count=0;
-		while((html==null&&img==null)||httpCode>=400){
-			Exception laste = null;
-			try{
-				html=fetch(url, "POST");
-				img=getResponseBinaryData();
-			}catch (Exception e) {
-				laste=e;
-				logger.warning("请求失败,最多重试"+redoTimes+"次,现在是第"+count+"次请求");
-			//	logger.info(e.getMessage());
-
-			}
-			if(count>redoTimes){
-				throw new FetchTimeoutException(laste!=null?laste.getMessage():"请求失败，不是程序问题");
-			}
-			count++;
-		}
-		return html;
-	}
-	@Override
-	public void setFormEncodeCharset(String charset) {
-		this.characterEncode =charset;
+		return fetch(url, method, false ,redoTimes);
 	}
 
 	@Override
-	public byte[] getResource(String url) {
-		// TODO Auto-generated method stub
-		return null;
+	public BinaryData getResource(String url) throws FetchTimeoutException {
+		return getResource(url,1);
 	}
 
 	@Override
-	public byte[] getResource(String url, int redoTimes) throws FetchTimeoutException {
-		// TODO Auto-generated method stub
-		return null;
+	public BinaryData getResource(String url, int redoTimes) throws FetchTimeoutException {
+		this.method = "GET";
+		fetch(url, method, true,redoTimes);
+		return this.getResponseBinaryData();
 	}
 
 	@Override
-	public void setRequestCharset(String charset) {
-		// TODO Auto-generated method stub
-		
+	public FetchUrl setRequestCharset(String charset) {
+		this.characterEncode=charset;
+		return this;
+	}
+
+	public void setResponseBinaryData(BinaryData responseBinaryData) {
+		this.responseBinaryData = responseBinaryData;
+	}
+
+	@Override
+	public BinaryData getResource(String url, String fileName) throws FetchTimeoutException {
+		return getResource(url).setFileName(fileName);
+	}
+
+	@Override
+	public BinaryData getResource(String url, String fileName, int redoTimes) throws FetchTimeoutException {
+		return getResource(url,redoTimes).setFileName(fileName);
 	}
 
 

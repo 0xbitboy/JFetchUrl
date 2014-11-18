@@ -1,8 +1,16 @@
 package zhku.jackcan.webCrawler;
 
-import junit.framework.Test;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Date;
+
+import org.junit.Test;
+
+import zhku.jackcan.webCrawler.exception.FetchTimeoutException;
+import zhku.jackcan.webCrawler.impl.BinaryData;
 import junit.framework.TestCase;
-import junit.framework.TestSuite;
 
 /**
  * Unit test for simple App.
@@ -10,29 +18,29 @@ import junit.framework.TestSuite;
 public class AppTest 
     extends TestCase
 {
-    /**
-     * Create the test case
-     *
-     * @param testName name of the test case
-     */
-    public AppTest( String testName )
-    {
-        super( testName );
-    }
+    @Test
+    public void testGetResource(){
+    	String url = "http://jw.zhku.edu.cn/jwmis/sys/ValidateCode.aspx";
+    	FetchUrl fetchUrl  = FetchUrlFactory.getFetchurl();
 
-    /**
-     * @return the suite of tests being tested
-     */
-    public static Test suite()
-    {
-        return new TestSuite( AppTest.class );
-    }
-
-    /**
-     * Rigourous Test :-)
-     */
-    public void testApp()
-    {
-        assertTrue( true );
+		for(int i=0;i<20;i++)
+    	try {
+			BinaryData img = fetchUrl.getResource(url,new Date().getTime()+".jpg");
+			System.out.println(fetchUrl.getResponseCookies());
+			FileOutputStream op = new FileOutputStream("E:\\validate\\"+img.getFileName());
+			op.write(img.getData());
+			op.flush();
+    			
+		} catch (FetchTimeoutException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
     }
 }

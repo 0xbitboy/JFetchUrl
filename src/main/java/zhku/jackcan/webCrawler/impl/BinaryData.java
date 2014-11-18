@@ -13,6 +13,10 @@ public class BinaryData
     return this.fileName;
   }
 
+  public BinaryData setFileName(String fileName){
+	  this.fileName =fileName;
+	  return this;
+  }
   public byte[] getData() {
     return this.data;
   }
