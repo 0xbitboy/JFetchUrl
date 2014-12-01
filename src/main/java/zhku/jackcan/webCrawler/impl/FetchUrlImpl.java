@@ -3,6 +3,8 @@ package zhku.jackcan.webCrawler.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -11,6 +13,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -27,6 +33,8 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpTrace;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -105,10 +113,23 @@ public class FetchUrlImpl implements FetchUrl {
 				this.scheme = "http";
 			} else if ("https".equals(url_head.toLowerCase())) {
 				this.scheme = "https";
-				url = new StringBuilder().append("http:").append(url_body).toString();
+//				url = new StringBuilder().append("http:").append(url_body).toString();
 			} else {
 				logger.warning("The protocol of this url is not http or https!!! The correct url example is 'http://www.baidu.com'");
 			}
+			//如果是https 强制接受所有的证书
+			if(this.scheme.equals("https")){
+				X509TrustManager xtm = new X509TrustManager(){
+					public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
+					public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
+					public X509Certificate[] getAcceptedIssuers() {return null;}
+				};
+				SSLContext ctx = SSLContext.getInstance("TLS");
+				ctx.init(null, new TrustManager[]{xtm}, null);
+				SSLSocketFactory socketFactory = new SSLSocketFactory(ctx);
+				httpclient.getConnectionManager().getSchemeRegistry().register(new Scheme("https", 443, socketFactory));
+			}
+			/**END**/
 			this.http = choiceHttpMethod(this.method, url);
 
 			genHttpHeader(this.http, url);
