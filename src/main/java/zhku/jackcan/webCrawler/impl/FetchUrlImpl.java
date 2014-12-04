@@ -22,6 +22,7 @@ import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
+import org.apache.http.client.CookieStore;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpDelete;
@@ -36,6 +37,7 @@ import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -65,7 +67,7 @@ public class FetchUrlImpl implements FetchUrl {
 	private static Logger logger = Logger.getLogger(FetchUrlImpl.class.getName());
 	private String method = "GET";
 	private String decodeCharset = null;
-	private HttpClient httpclient = null;
+	private DefaultHttpClient httpclient = null;
 	private Map<String, String> headers = new HashMap<String,String>();
 	private HttpRequestBase http;
 	private Map<String, String> addHttpHeaders = new HashMap<String,String>();
@@ -571,6 +573,23 @@ public class FetchUrlImpl implements FetchUrl {
 	@Override
 	public BinaryData getResource(String url, String fileName, int redoTimes) throws FetchTimeoutException {
 		return getResource(url,redoTimes).setFileName(fileName);
+	}
+
+	@Override
+	public CookieStore getCookieStore() {
+		return this.httpclient.getCookieStore();
+	}
+
+	@Override
+	public String getCookies() {
+		CookieStore cookieStore = this.httpclient.getCookieStore();
+		List<Cookie> cookieList = cookieStore.getCookies();
+		StringBuffer stringBuffer = new StringBuffer();
+		for(Cookie cookie :cookieList){
+			stringBuffer.append(cookie.getName()+"="+cookie.getValue()+"; ");
+		}
+		stringBuffer.append("path=/");
+		return stringBuffer.toString();
 	}
 
 
