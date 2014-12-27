@@ -11,8 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -23,7 +21,6 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.CookieStore;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -33,7 +30,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpTrace;
-import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.SSLSocketFactory;
@@ -44,6 +40,7 @@ import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.util.EntityUtils;
+import org.apache.log4j.Logger;
 
 import sun.misc.BASE64Encoder;
 import zhku.jackcan.webCrawler.BasicNameValuePair;
@@ -60,17 +57,17 @@ public class FetchUrlImpl implements FetchUrl {
 	private static final String HEAD = "HEAD";
 	private static final String OPTIONS = "OPTIONS";
 	private static final String TRACE = "TRACE";
-	private static final int CONNECT_TIMEOUT = 5000;
-	private static final int SENT_TIMEOUT = 20000;
-	private static final int READ_TIMEOUT = 20000;
+	private static final int CONNECT_TIMEOUT = 60000;
+	private static final int SENT_TIMEOUT = 60000;
+	private static final int READ_TIMEOUT = 60000;
 	private static final int MAX_REDIRECT_NUM = 5;
-	private static Logger logger = Logger.getLogger(FetchUrlImpl.class.getName());
+	private static Logger logger = Logger.getLogger(FetchUrlImpl.class);
 	private String method = "GET";
 	private String decodeCharset = null;
 	private DefaultHttpClient httpclient = null;
-	private Map<String, String> headers = new HashMap<String,String>();
+	private Map<String, String> headers = new HashMap<String, String>();
 	private HttpRequestBase http;
-	private Map<String, String> addHttpHeaders = new HashMap<String,String>();
+	private Map<String, String> addHttpHeaders = new HashMap<String, String>();
 	private List<NameValuePair> postDataList = new ArrayList<NameValuePair>();
 	private boolean isPost = false;
 	private int httpStatusCode = 200;
@@ -79,26 +76,28 @@ public class FetchUrlImpl implements FetchUrl {
 	private String characterEncode = "UTF-8";
 	private String header_str = "";
 	private String scheme = "http";
-	private BinaryData responseBinaryData=null;
+	private BinaryData responseBinaryData = null;
+
 	public FetchUrlImpl() {
-		 //多线程支持
-		 ClientConnectionManager conMgr =new ThreadSafeClientConnManager();
-		 httpclient = new DefaultHttpClient(conMgr);
-		 init();
+		// 多线程支持
+		ClientConnectionManager conMgr = new ThreadSafeClientConnManager();
+		httpclient = new DefaultHttpClient(conMgr);
+		init();
 	}
 
 	@Override
 	public String get(String url) throws FetchTimeoutException {
 		this.method = "GET";
-		return fetch(url, "GET",false,1);
+		return fetch(url, "GET", false, 1);
 	}
 
 	@Override
 	public String post(String url) throws FetchTimeoutException {
 		this.method = "POST";
-		return fetch(url, "POST",false,1);
+		return fetch(url, "POST", false, 1);
 	}
-	private String fetch(String url, String method,boolean isResource ,int redoTimes) throws FetchTimeoutException {
+
+	private String fetch(String url, String method, boolean isResource, int redoTimes) throws FetchTimeoutException {
 		HttpEntity entity = null;
 		try {
 			if (null == method)
@@ -108,7 +107,7 @@ public class FetchUrlImpl implements FetchUrl {
 			}
 			int flg = url.indexOf(":");
 			if ((flg != 4) && (flg != 5)) {
-				logger.warning("The protocol of this url is not http or https!!! The correct url example is 'http://www.baidu.com'");
+				logger.warn("The protocol of this url is not http or https!!! The correct url example is 'http://www.baidu.com'");
 			}
 			String url_head = url.split(":")[0];
 			String url_body = url.split(":")[1];
@@ -116,23 +115,30 @@ public class FetchUrlImpl implements FetchUrl {
 				this.scheme = "http";
 			} else if ("https".equals(url_head.toLowerCase())) {
 				this.scheme = "https";
-//				url = new StringBuilder().append("http:").append(url_body).toString();
+				// url = new
+				// StringBuilder().append("http:").append(url_body).toString();
 			} else {
-				logger.warning("The protocol of this url is not http or https!!! The correct url example is 'http://www.baidu.com'");
+				logger.warn("The protocol of this url is not http or https!!! The correct url example is 'http://www.baidu.com'");
 			}
-			//如果是https 强制接受所有的证书
-			if(this.scheme.equals("https")){
-				X509TrustManager xtm = new X509TrustManager(){
-					public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-					public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-					public X509Certificate[] getAcceptedIssuers() {return null;}
+			// 如果是https 强制接受所有的证书
+			if (this.scheme.equals("https")) {
+				X509TrustManager xtm = new X509TrustManager() {
+					public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+					}
+
+					public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+					}
+
+					public X509Certificate[] getAcceptedIssuers() {
+						return null;
+					}
 				};
 				SSLContext ctx = SSLContext.getInstance("TLS");
-				ctx.init(null, new TrustManager[]{xtm}, null);
+				ctx.init(null, new TrustManager[] { xtm }, null);
 				SSLSocketFactory socketFactory = new SSLSocketFactory(ctx);
 				httpclient.getConnectionManager().getSchemeRegistry().register(new Scheme("https", 443, socketFactory));
 			}
-			/**END**/
+			/** END **/
 			this.http = choiceHttpMethod(this.method, url);
 
 			genHttpHeader(this.http, url);
@@ -140,38 +146,36 @@ public class FetchUrlImpl implements FetchUrl {
 			if (this.isPost) {
 				genPostRequest(this.http);
 			}
-
-			if (logger.isLoggable(Level.FINE)) {
-				logger.fine(new StringBuilder().append("request url = ").append(this.http.getRequestLine().getUri()).toString());
-				logger.fine(new StringBuilder().append("request method = ").append(this.http.getRequestLine().getMethod()).toString());
-				logger.fine(new StringBuilder().append("request http version = ").append(this.http.getRequestLine().getProtocolVersion()).toString());
+			if (logger.isDebugEnabled()) {
+				logger.debug(new StringBuilder().append("request url = ").append(this.http.getRequestLine().getUri()).toString());
+				logger.debug(new StringBuilder().append("request method = ").append(this.http.getRequestLine().getMethod()).toString());
+				logger.debug(new StringBuilder().append("request http version = ").append(this.http.getRequestLine().getProtocolVersion()).toString());
 				Header[] headers = this.http.getAllHeaders();
-				logger.fine("request headers:");
+				logger.debug("request headers:");
 				Header[] arr = headers;
 				int len = arr.length;
-
 				for (int i = 0; i < len; i++) {
 					Header h = arr[i];
-					logger.fine(new StringBuilder().append(h.getName()).append(" : ").append(h.getValue()).toString());
+					logger.debug(new StringBuilder().append(h.getName()).append(" : ").append(h.getValue()).toString());
 				}
-
 			}
-			/***重试N次***/
-			HttpResponse response =null;
-			if(redoTimes<0) redoTimes =1;
-			int times =1;
-			while(response==null||response.getStatusLine().getStatusCode()>=500){
-				if(times>redoTimes){
+			/*** 重试N次 ***/
+			HttpResponse response = null;
+			if (redoTimes < 0)
+				redoTimes = 1;
+			int times = 1;
+			while (response == null || response.getStatusLine().getStatusCode() >= 500) {
+				if (times > redoTimes) {
 					break;
 				}
-				//释放之前的链接请求
-				if(this.http!=null){
+				// 释放之前的链接请求
+				if (this.http != null) {
 					this.http.releaseConnection();
 				}
-				try{
-					response= this.httpclient.execute(this.http);
-				}catch(Exception e){
-					if(times>redoTimes){
+				try {
+					response = this.httpclient.execute(this.http);
+				} catch (Exception e) {
+					if (times >=redoTimes) {
 						throw new FetchTimeoutException();
 					}
 				}
@@ -187,33 +191,33 @@ public class FetchUrlImpl implements FetchUrl {
 				Header h = arr[i];
 				this.headers.put(h.getName(), h.getValue());
 				this.header_str = new StringBuilder().append(this.header_str).append(h.getName()).append(":").append(h.getValue()).append(";").toString();
-				if (logger.isLoggable(Level.FINE)) {
-					logger.fine(new StringBuilder().append(h.getName()).append(":").append(h.getValue()).toString());
+				if (logger.isDebugEnabled()) {
+					logger.debug(new StringBuilder().append(h.getName()).append(":").append(h.getValue()).toString());
 				}
 			}
 			entity = response.getEntity();
-			if(isResource){
-				String contentType= headers.get("Content-Type");
-				String suffix=null;
-				if(contentType!=null){
-					contentType=contentType.split(";")[0];
+			if (isResource) {
+				String contentType = headers.get("Content-Type");
+				String suffix = null;
+				if (contentType != null) {
+					contentType = contentType.split(";")[0];
 					suffix = contentType.split("/")[1];
 				}
-				if (contentType!=null) {
-					String tempName = url.substring(url.lastIndexOf('/')+1, url.length());
-					if(!tempName.endsWith(suffix)){
-						tempName =new StringBuffer().append(tempName.replaceAll("\\.[\\s\\S]+", "")).append(".").append(suffix).toString();
+				if (contentType != null) {
+					String tempName = url.substring(url.lastIndexOf('/') + 1, url.length());
+					if (!tempName.endsWith(suffix)) {
+						tempName = new StringBuffer().append(tempName.replaceAll("\\.[\\s\\S]+", "")).append(".").append(suffix).toString();
 					}
-					this.responseBinaryData = new BinaryData(tempName,  EntityUtils.toByteArray(entity));
+					this.responseBinaryData = new BinaryData(tempName, EntityUtils.toByteArray(entity));
 					return tempName;
-				} 
-			}else if (decodeCharset == null) {
+				}
+			} else if (decodeCharset == null) {
 				this.body = EntityUtils.toString(entity, this.characterEncode);
 			} else {
 				this.body = new String(EntityUtils.toByteArray(entity), decodeCharset);
 			}
 			return this.body;
-		}catch(FetchTimeoutException fetche){
+		} catch (FetchTimeoutException fetche) {
 			throw fetche;
 		} catch (Exception e) {
 			StackTraceElement[] ste = e.getStackTrace();
@@ -221,8 +225,8 @@ public class FetchUrlImpl implements FetchUrl {
 			for (int i = 0; i < ste.length; i++) {
 				ex_str = new StringBuilder().append(ex_str).append(ste[i].toString()).append("\n").toString();
 			}
-			logger.warning(new StringBuilder().append("fetch failure.StackTrace : {[(\n").append(ex_str).append("\n)]}").toString());
-			logger.warning("请求错误，可能是超时---->");
+			logger.warn(new StringBuilder().append("fetch failure.StackTrace : {[(\n").append(ex_str).append("\n)]}").toString());
+			logger.warn("请求错误，可能是超时---->");
 		} finally {
 			try {
 				InputStream in;
@@ -299,10 +303,10 @@ public class FetchUrlImpl implements FetchUrl {
 				for (int i = 0; i < ste.length; i++) {
 					ex_str = new StringBuilder().append(ex_str).append(ste[i].toString()).append("\n").toString();
 				}
-				logger.warning(new StringBuilder().append("gen post request header failure.StackTrace : {[(\n").append(ex_str).append("\n)]}").toString());
+				logger.warn(new StringBuilder().append("gen post request header failure.StackTrace : {[(\n").append(ex_str).append("\n)]}").toString());
 			}
 		} else {
-			logger.warning("current http method not post!");
+			logger.debug("current http method not post!");
 		}
 	}
 
@@ -337,14 +341,15 @@ public class FetchUrlImpl implements FetchUrl {
 
 	private void genHttpHeader(HttpRequestBase http, String url) {
 		// 模拟google爬虫
-		//http.setHeader("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)");
-		//猎豹浏览器
+		// http.setHeader("User-Agent",
+		// "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)");
+		// 猎豹浏览器
 		http.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.137 Safari/537.36 LBBROWSER");
 	}
 
 	@Override
 	public FetchUrl setReadTimeout(int timeout) {
-		if ((timeout > 20000) || (timeout < 1))
+		if (timeout < 1)
 			timeout = 20000;
 		this.httpclient.getParams().setParameter("http.socket.timeout", Integer.valueOf(timeout));
 		return this;
@@ -352,7 +357,7 @@ public class FetchUrlImpl implements FetchUrl {
 
 	@Override
 	public FetchUrl setSendTimeout(int timeout) {
-		if ((timeout > 20000) || (timeout < 1))
+		if (timeout < 1)
 			timeout = 20000;
 		this.httpclient.getParams().setParameter("http.socket.timeout", Integer.valueOf(timeout));
 		return this;
@@ -360,7 +365,7 @@ public class FetchUrlImpl implements FetchUrl {
 
 	@Override
 	public FetchUrl setConnectTimeout(int timeout) {
-		if ((timeout > 5000) || (timeout < 1))
+		if (timeout < 1)
 			timeout = 5000;
 		this.httpclient.getParams().setParameter("http.connection.timeout", Integer.valueOf(timeout));
 		return this;
@@ -432,8 +437,8 @@ public class FetchUrlImpl implements FetchUrl {
 		this.postDataList = postDataList;
 		this.isPost = true;
 		this.characterEncode = characterEncode;
-		if (logger.isLoggable(Level.FINE))
-			logger.fine(new StringBuilder().append("post data:").append(postDataList).toString());
+		if (logger.isDebugEnabled())
+			logger.debug(new StringBuilder().append("post data:").append(postDataList).toString());
 		return this;
 	}
 
@@ -476,10 +481,10 @@ public class FetchUrlImpl implements FetchUrl {
 	}
 
 	private void init() {
-		this.httpclient.getParams().setParameter("http.connection.timeout", Integer.valueOf(5000));
-		this.httpclient.getParams().setParameter("http.socket.timeout", Integer.valueOf(20000));
-		this.httpclient.getParams().setParameter("http.protocol.handle-redirects", Boolean.valueOf(true));
-		this.httpclient.getParams().setParameter("http.protocol.max-redirects", Integer.valueOf(5));
+		 this.httpclient.getParams().setParameter("http.connection.timeout",Integer.valueOf(60000));
+		 this.httpclient.getParams().setParameter("http.socket.timeout",Integer.valueOf(60000));
+//		 this.httpclient.getParams().setParameter("http.protocol.handle-redirects",Boolean.valueOf(true));
+//		 this.httpclient.getParams().setParameter("http.protocol.max-redirects",Integer.valueOf(5));
 	}
 
 	@Override
@@ -488,9 +493,9 @@ public class FetchUrlImpl implements FetchUrl {
 		init();
 		this.http = null;
 		if (this.headers != null)
-			this.headers = new HashMap<String,String>();
+			this.headers = new HashMap<String, String>();
 		if (this.addHttpHeaders != null)
-			this.addHttpHeaders =new HashMap<String,String>();
+			this.addHttpHeaders = new HashMap<String, String>();
 		this.isPost = false;
 		if (this.postDataList != null) {
 			this.postDataList = new ArrayList<NameValuePair>();
@@ -504,6 +509,7 @@ public class FetchUrlImpl implements FetchUrl {
 		this.header_str = "";
 		return this;
 	}
+
 	@Override
 	public BinaryData getResponseBinaryData() {
 		return this.responseBinaryData;
@@ -514,6 +520,7 @@ public class FetchUrlImpl implements FetchUrl {
 		this.addHttpHeaders.put("Cookie", cookieString);
 		return this;
 	}
+
 	@Override
 	public FetchUrl setDecodeCharset(String charset) {
 		this.decodeCharset = charset;
@@ -523,8 +530,8 @@ public class FetchUrlImpl implements FetchUrl {
 	@Override
 	public FetchUrl setPostData(Map<String, String> paramMap) {
 		this.postDataList.clear();
-		Set<String> keys=paramMap.keySet();
-		for(String key:keys){
+		Set<String> keys = paramMap.keySet();
+		for (String key : keys) {
 			this.postDataList.add(new BasicNameValuePair(key, paramMap.get(key)));
 		}
 		setPostData(postDataList, this.characterEncode);
@@ -534,30 +541,30 @@ public class FetchUrlImpl implements FetchUrl {
 	@Override
 	public String get(String url, int redoTimes) throws FetchTimeoutException {
 		this.method = "GET";
-		return fetch(url, method, false,redoTimes);
+		return fetch(url, method, false, redoTimes);
 	}
 
 	@Override
 	public String post(String url, int redoTimes) throws FetchTimeoutException {
 		this.method = "POST";
-		return fetch(url, method, false ,redoTimes);
+		return fetch(url, method, false, redoTimes);
 	}
 
 	@Override
 	public BinaryData getResource(String url) throws FetchTimeoutException {
-		return getResource(url,1);
+		return getResource(url, 1);
 	}
 
 	@Override
 	public BinaryData getResource(String url, int redoTimes) throws FetchTimeoutException {
 		this.method = "GET";
-		fetch(url, method, true,redoTimes);
+		fetch(url, method, true, redoTimes);
 		return this.getResponseBinaryData();
 	}
 
 	@Override
 	public FetchUrl setRequestCharset(String charset) {
-		this.characterEncode=charset;
+		this.characterEncode = charset;
 		return this;
 	}
 
@@ -572,7 +579,7 @@ public class FetchUrlImpl implements FetchUrl {
 
 	@Override
 	public BinaryData getResource(String url, String fileName, int redoTimes) throws FetchTimeoutException {
-		return getResource(url,redoTimes).setFileName(fileName);
+		return getResource(url, redoTimes).setFileName(fileName);
 	}
 
 	@Override
@@ -585,12 +592,17 @@ public class FetchUrlImpl implements FetchUrl {
 		CookieStore cookieStore = this.httpclient.getCookieStore();
 		List<Cookie> cookieList = cookieStore.getCookies();
 		StringBuffer stringBuffer = new StringBuffer();
-		for(Cookie cookie :cookieList){
-			stringBuffer.append(cookie.getName()+"="+cookie.getValue()+"; ");
+		for (Cookie cookie : cookieList) {
+			stringBuffer.append(cookie.getName() + "=" + cookie.getValue() + "; ");
 		}
 		stringBuffer.append("path=/");
 		return stringBuffer.toString();
 	}
 
+	@Override
+	public FetchUrl setCookieStore(CookieStore cookieStore) {
+		this.httpclient.setCookieStore(cookieStore);
+		return this;
+	}
 
 }

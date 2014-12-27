@@ -1,9 +1,10 @@
-zhku\jackcan\webCrawler\FetchUrl.class
-zhku\jackcan\webCrawler\BinaryNameValuePair.class
 zhku\jackcan\webCrawler\NameValuePair.class
-zhku\jackcan\webCrawler\FetchUrlFactory.class
 zhku\jackcan\webCrawler\impl\FetchUrlImpl.class
-zhku\jackcan\webCrawler\impl\FetchUrlImpl$1.class
+zhku\jackcan\webCrawler\impl\StringCookieStore.class
 zhku\jackcan\webCrawler\exception\FetchTimeoutException.class
-zhku\jackcan\webCrawler\impl\BinaryData.class
+zhku\jackcan\webCrawler\BinaryNameValuePair.class
+zhku\jackcan\webCrawler\FetchUrl.class
+zhku\jackcan\webCrawler\FetchUrlFactory.class
+zhku\jackcan\webCrawler\impl\FetchUrlImpl$1.class
 zhku\jackcan\webCrawler\BasicNameValuePair.class
+zhku\jackcan\webCrawler\impl\BinaryData.class

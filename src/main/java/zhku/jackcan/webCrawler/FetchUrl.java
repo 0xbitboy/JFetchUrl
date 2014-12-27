@@ -26,6 +26,7 @@ public interface FetchUrl {
 	  public abstract FetchUrl setRedirectNum(int paramInt);
 	  public abstract FetchUrl setCookie(String key, String value);
 	  public abstract FetchUrl setCookies(String cookieString);
+	  public abstract FetchUrl setCookieStore(CookieStore cookieStroe);
 	  public abstract CookieStore getCookieStore();
 	  public abstract String getCookies();
 	  public abstract FetchUrl setCookies(Map<String, String> cookieMap);
