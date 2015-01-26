@@ -31,6 +31,7 @@ public interface FetchUrl {
 	  public abstract String getCookies();
 	  public abstract FetchUrl setCookies(Map<String, String> cookieMap);
 	  public abstract FetchUrl setHeader(String name, String header);
+	  public abstract FetchUrl setProxy(String ip, int port);
 	  public abstract FetchUrl setHttpAuth(String userName, String password);
 	  public abstract FetchUrl setPostData(List<NameValuePair> paramList);
 	  public abstract FetchUrl setPostData(Map<String,String> paramMap);

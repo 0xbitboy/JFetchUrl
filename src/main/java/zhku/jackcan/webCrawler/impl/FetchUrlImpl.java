@@ -18,9 +18,11 @@ import javax.net.ssl.X509TrustManager;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.CookieStore;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -31,12 +33,14 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpTrace;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.util.EntityUtils;
@@ -212,7 +216,7 @@ public class FetchUrlImpl implements FetchUrl {
 					return tempName;
 				}
 			} else if (decodeCharset == null) {
-				this.body = EntityUtils.toString(entity, this.characterEncode);
+				this.body = EntityUtils.toString(entity);
 			} else {
 				this.body = new String(EntityUtils.toByteArray(entity), decodeCharset);
 			}
@@ -602,6 +606,15 @@ public class FetchUrlImpl implements FetchUrl {
 	@Override
 	public FetchUrl setCookieStore(CookieStore cookieStore) {
 		this.httpclient.setCookieStore(cookieStore);
+		return this;
+	}
+
+	@Override
+	public FetchUrl setProxy(String ip, int port) {
+		HttpHost proxy = new HttpHost(ip, port);
+		CredentialsProvider credsProvider = new BasicCredentialsProvider();
+		this.httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,proxy);
+		((DefaultHttpClient) this.httpclient).setCredentialsProvider(credsProvider);
 		return this;
 	}
 
