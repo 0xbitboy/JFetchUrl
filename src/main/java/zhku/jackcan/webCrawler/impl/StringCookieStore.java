@@ -6,7 +6,7 @@ import org.apache.http.impl.cookie.BasicClientCookie;
 
 
 /** 
- * 更加 字符串构造 CookieStore 对象 ，多个 Cookie值用 >@<分开
+ * 字符串构造 CookieStore 对象 ，多个 Cookie值用 >@<分开
  * @ClassName: StringCookieStore
  * @Description: TODO(convert String to {@link Cookie}}) 
  *  

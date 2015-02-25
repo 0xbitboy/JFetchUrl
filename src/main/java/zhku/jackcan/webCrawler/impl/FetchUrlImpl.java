@@ -81,7 +81,7 @@ public class FetchUrlImpl implements FetchUrl {
 	private String header_str = "";
 	private String scheme = "http";
 	private BinaryData responseBinaryData = null;
-
+	private HttpEntity httpEntity=null;
 	public FetchUrlImpl() {
 		// 多线程支持
 		ClientConnectionManager conMgr = new ThreadSafeClientConnManager();
@@ -180,7 +180,7 @@ public class FetchUrlImpl implements FetchUrl {
 					response = this.httpclient.execute(this.http);
 				} catch (Exception e) {
 					if (times >=redoTimes) {
-						throw new FetchTimeoutException();
+						throw new FetchTimeoutException(e);
 					}
 				}
 				times++;
@@ -300,6 +300,8 @@ public class FetchUrlImpl implements FetchUrl {
 						}
 						post.setEntity(new UrlEncodedFormEntity(nvps, this.characterEncode));
 					}
+				}else if(getHttpEntity()!=null){
+					post.setEntity(getHttpEntity());
 				}
 			} catch (Exception e) {
 				StackTraceElement[] ste = e.getStackTrace();
@@ -616,6 +618,21 @@ public class FetchUrlImpl implements FetchUrl {
 		this.httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,proxy);
 		((DefaultHttpClient) this.httpclient).setCredentialsProvider(credsProvider);
 		return this;
+	}
+
+	@Override
+	public FetchUrl setPostData(HttpEntity entity) {
+		setHttpEntity(entity);
+		this.postDataList.clear();
+		return this;
+	}
+
+	public HttpEntity getHttpEntity() {
+		return httpEntity;
+	}
+
+	public void setHttpEntity(HttpEntity httpEntity) {
+		this.httpEntity = httpEntity;
 	}
 
 }
