@@ -2,7 +2,9 @@ package zhku.jackcan.webCrawler.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.cookie.Cookie;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -82,6 +85,8 @@ public class FetchUrlImpl implements FetchUrl {
 	private String scheme = "http";
 	private BinaryData responseBinaryData = null;
 	private HttpEntity httpEntity=null;
+	
+
 	public FetchUrlImpl() {
 		// 多线程支持
 		ClientConnectionManager conMgr = new ThreadSafeClientConnManager();
@@ -216,7 +221,22 @@ public class FetchUrlImpl implements FetchUrl {
 					return tempName;
 				}
 			} else if (decodeCharset == null) {
-				this.body = EntityUtils.toString(entity);
+//				this.body = EntityUtils.toString(entity);
+				//自动识别编码，将 GB2312 强制升到 GBK 解决 部分文字乱码的问题
+				Charset charset = null;
+				try {
+	                ContentType contentType = ContentType.get(entity);
+	                if (contentType != null) {
+	                    charset = contentType.getCharset();
+	                    if(charset.name().toLowerCase().equals("gb2312")){
+	                    	charset = Charset.forName("GBK");
+	                    }
+	                }
+					this.body = new String(EntityUtils.toByteArray(entity), charset);
+	            } catch (final UnsupportedCharsetException ex) {
+//	                throw new UnsupportedEncodingException(ex.getMessage());
+					this.body = EntityUtils.toString(entity,"UTF-8");
+	            }
 			} else {
 				this.body = new String(EntityUtils.toByteArray(entity), decodeCharset);
 			}
