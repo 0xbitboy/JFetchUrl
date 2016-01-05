@@ -230,7 +230,9 @@ public class FetchUrlImpl implements FetchUrl {
 	                    if(charset.name().toLowerCase().equals("gb2312")){
 	                    	charset = Charset.forName("GBK");
 	                    }
-	                }
+	                }else{
+						this.body = EntityUtils.toString(entity);
+					}
 					this.body = new String(EntityUtils.toByteArray(entity), charset);
 	            } catch (final UnsupportedCharsetException ex) {
 //	                throw new UnsupportedEncodingException(ex.getMessage());
@@ -631,8 +633,8 @@ public class FetchUrlImpl implements FetchUrl {
 	}
 
 	@Override
-	public FetchUrl setProxy(String ip, int port) {
-		HttpHost proxy = new HttpHost(ip, port);
+	public FetchUrl setProxy(String ip, int port,String protocol) {
+		HttpHost proxy = new HttpHost(ip, port,"https".equals(protocol)?"https":"http");
 		CredentialsProvider credsProvider = new BasicCredentialsProvider();
 		this.httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,proxy);
 		((DefaultHttpClient) this.httpclient).setCredentialsProvider(credsProvider);

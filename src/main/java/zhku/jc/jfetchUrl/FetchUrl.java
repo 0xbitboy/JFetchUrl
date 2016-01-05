@@ -167,7 +167,7 @@ public interface FetchUrl {
 	   * @param port
 	   * @return
 	   */
-	  public abstract FetchUrl setProxy(String ip, int port);
+	  public abstract FetchUrl setProxy(String ip, int port,String protocol);
 	  /**
 	   * 需要身份验证的账号信息
 	   * @param userName
