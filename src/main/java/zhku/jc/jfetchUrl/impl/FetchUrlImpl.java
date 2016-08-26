@@ -34,8 +34,11 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpTrace;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.ClientConnectionOperator;
+import org.apache.http.conn.DnsResolver;
 import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.ContentType;
@@ -44,6 +47,8 @@ import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.BasicClientConnectionManager;
+import org.apache.http.impl.conn.DefaultClientConnectionOperator;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
@@ -90,6 +95,17 @@ public class FetchUrlImpl implements FetchUrl {
 		// 多线程支持
 		ClientConnectionManager conMgr = new ThreadSafeClientConnManager();
 		httpclient = new DefaultHttpClient(conMgr);
+		init();
+	}
+
+	public FetchUrlImpl(final DnsResolver dnsResolver){
+		BasicClientConnectionManager connectionManager =  new BasicClientConnectionManager() {
+			@Override
+			protected ClientConnectionOperator createConnectionOperator(SchemeRegistry schreg) {
+				return  new DefaultClientConnectionOperator(schreg,  dnsResolver);
+			}
+		};
+		httpclient = new DefaultHttpClient(connectionManager);
 		init();
 	}
 
@@ -218,6 +234,9 @@ public class FetchUrlImpl implements FetchUrl {
 					}
 					this.responseBinaryData = new BinaryData(tempName, EntityUtils.toByteArray(entity));
 					return tempName;
+				}else{
+					this.responseBinaryData = new BinaryData("tmp", EntityUtils.toByteArray(entity));
+					return "tmp";
 				}
 			} else if (decodeCharset == null) {
 //				this.body = EntityUtils.toString(entity);
