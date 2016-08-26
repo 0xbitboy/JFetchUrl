@@ -51,8 +51,9 @@ import org.apache.http.impl.conn.BasicClientConnectionManager;
 import org.apache.http.impl.conn.DefaultClientConnectionOperator;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.util.EntityUtils;
-import org.apache.log4j.Logger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.misc.BASE64Encoder;
 import zhku.jc.jfetchUrl.BasicNameValuePair;
 import zhku.jc.jfetchUrl.BinaryNameValuePair;
@@ -72,7 +73,7 @@ public class FetchUrlImpl implements FetchUrl {
 	private static final int SENT_TIMEOUT = 60000;
 	private static final int READ_TIMEOUT = 60000;
 	private static final int MAX_REDIRECT_NUM = 5;
-	private static Logger logger = Logger.getLogger(FetchUrlImpl.class);
+	private static Logger logger = LoggerFactory.getLogger(FetchUrlImpl.class);
 	private String method = "GET";
 	private String decodeCharset = null;
 	private DefaultHttpClient httpclient = null;

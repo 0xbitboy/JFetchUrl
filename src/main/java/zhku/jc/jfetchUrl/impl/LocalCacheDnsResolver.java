@@ -1,6 +1,8 @@
 package zhku.jc.jfetchUrl.impl;
 
 import org.apache.http.conn.DnsResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -19,31 +21,61 @@ public class LocalCacheDnsResolver implements DnsResolver {
     private final static Map<String, Long> expires =  new ConcurrentHashMap<String, Long>();
     private long expireMillis = TimeUnit.MINUTES.toMillis(1); //默认一分钟失效
 
+    private static Logger logger = LoggerFactory.getLogger(LocalCacheDnsResolver.class);
+
+    public LocalCacheDnsResolver() {
+    }
+
+    public LocalCacheDnsResolver(long expireMillis) {
+        this.expireMillis = expireMillis;
+    }
 
     @Override
     public InetAddress[] resolve(String host) throws UnknownHostException {
         Date now = new Date();
+        ExpireInetAddresses result;
         if(MAPPINGS.containsKey(host)){
-            ExpireInetAddresses expInetAddress
-                    = MAPPINGS.get(host);
+            ExpireInetAddresses expInetAddress = MAPPINGS.get(host);
             if(expInetAddress.isExpire(now,getExpireMillis())){
                 try{
-                    return addResolve(host,now.getTime()).getInetAddresses();
+                    result = addResolve(host, now.getTime());
                 }catch (UnknownHostException e){
-                   return expInetAddress.getInetAddresses();
+                    logger.warn("host:" + host + "，dns couldn't resolver. return a expire result.");
+                    result = expInetAddress;
                 }
             }else{
-                return expInetAddress.getInetAddresses();
+                result = expInetAddress;
             }
         }else{
-            return addResolve(host,now.getTime()).getInetAddresses();
+            result =  addResolve(host,now.getTime());
         }
 
+        if(logger.isDebugEnabled()){
+            StringBuilder sb = new StringBuilder();
+            sb.append("host:").append(host).append("[");
+            for(InetAddress address : result.getInetAddresses()){
+                sb.append(address.getHostAddress()).append(",");
+            }
+            sb.deleteCharAt(sb.length()-1).append("]");
+            logger.debug(sb.toString());
+        }
+        return result.getInetAddresses();
     }
 
     private ExpireInetAddresses addResolve(String host,long  nowtime) throws UnknownHostException {
-        InetAddress[] address= InetAddress.getAllByName(host);
-        MAPPINGS.put(host, new ExpireInetAddresses(nowtime+getExpireMillis(),address));
+        InetAddress[] addresses= InetAddress.getAllByName(host);
+        MAPPINGS.put(host, new ExpireInetAddresses(nowtime+getExpireMillis(),addresses));
+
+        if(logger.isDebugEnabled()){
+            StringBuilder sb = new StringBuilder();
+            sb.append("add or update dns ==> host:").append(host).append("[");
+            for(InetAddress address : addresses){
+                sb.append(address.getHostAddress()).append(",");
+            }
+            sb.deleteCharAt(sb.length()-1).append("]");
+            logger.debug(sb.toString());
+        }
+
         return MAPPINGS.get(host);
     }
 
