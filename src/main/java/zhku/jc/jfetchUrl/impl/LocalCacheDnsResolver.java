@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 public class LocalCacheDnsResolver implements DnsResolver {
 
     private final static Map<String, ExpireInetAddresses> MAPPINGS =  new ConcurrentHashMap<String, ExpireInetAddresses>();
-    private final static Map<String, Long> expires =  new ConcurrentHashMap<String, Long>();
     private long expireMillis = TimeUnit.MINUTES.toMillis(1); //默认一分钟失效
 
     private static Logger logger = LoggerFactory.getLogger(LocalCacheDnsResolver.class);
