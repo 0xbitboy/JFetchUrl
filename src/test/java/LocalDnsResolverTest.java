@@ -14,7 +14,7 @@ public class LocalDnsResolverTest  extends TestCase{
     public void testDdns()throws Exception {
 
         FetchUrl fetchUrl = new FetchUrlBuilder(new LocalCacheDnsResolver(TimeUnit.MINUTES.toMillis(30))).build();
-        fetchUrl.get("http://baidu.com");
+        fetchUrl.get("http://qq.com");
         System.out.println(fetchUrl.getResponseBody());
     }
 
