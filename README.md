@@ -17,12 +17,16 @@
 ## 使用示例
 
 * GET
+
     ```
+    
      FetchUrl fetchUrl = new FetchUrlBuilder().build();
      fetchUrl.get("http://qq.com");
      System.out.println(fetchUrl.getResponseBody());
+     
     ```
 * POST
+
     ```
      FetchUrl fetchUrl = new FetchUrlBuilder().build();     
      Map<String,String> param = new HashMap<String, String>();
@@ -30,7 +34,8 @@
      param.put("passowrd","abc");
      fetchUrl.setPostData(param);
      fetchUrl.post("http://qq.com");
-     System.out.println(fetchUrl.getResponseBody()); 
+     System.out.println(fetchUrl.getResponseBody());
+      
     ```
 * 使用自定义DnsResolver
     
